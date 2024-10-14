@@ -125,6 +125,10 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
+  // Inicializar prioridad y boost
+  p->prioridad = 0;  // La prioridad comienza en 0 (mayor prioridad)
+  p->boost = 1;      // El boost comienza en 1
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -148,6 +152,7 @@ found:
 
   return p;
 }
+ 
 
 // free a proc structure and the data hanging from it,
 // including user pages.
@@ -440,13 +445,14 @@ wait(uint64 addr)
 //  - choose a process to run.
 //  - swtch to start running that process.
 //  - eventually that process transfers control
-//    via swtch back to the scheduler.
+//    via swtch back to the schedule
 void
 scheduler(void)
 {
   struct proc *p;
+  struct proc *selected_proc;
   struct cpu *c = mycpu();
-
+  
   c->proc = 0;
   for(;;){
     // The most recent process to run may have had interrupts
@@ -455,30 +461,59 @@ scheduler(void)
     intr_on();
 
     int found = 0;
+    selected_proc = 0;
+    
+    // Buscar el proceso con la mayor prioridad
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+        // Si no se ha seleccionado aún un proceso o si este tiene mayor prioridad
+        if(selected_proc == 0 || p->prioridad < selected_proc->prioridad) {
+          if (selected_proc) {
+            release(&selected_proc->lock); // liberar el lock del proceso anterior
+          }
+          selected_proc = p;
+        } else {
+          release(&p->lock); // liberar el lock si no es seleccionado
+        }
+      } else {
+        release(&p->lock); // liberar el lock si no es RUNNABLE
       }
-      release(&p->lock);
     }
+
+    // Si se seleccionó un proceso con la mayor prioridad
+    if(selected_proc != 0) {
+      selected_proc->state = RUNNING;
+      c->proc = selected_proc;
+
+      // Incrementar la prioridad del proceso basado en su boost
+      selected_proc->prioridad += selected_proc->boost;
+
+      // Ajustar boost si la prioridad alcanza límites
+      if(selected_proc->prioridad >= 9) {
+        selected_proc->boost = -1;
+      } else if(selected_proc->prioridad <= 0) {
+        selected_proc->boost = 1;
+      }
+
+      // Cambiar al proceso seleccionado
+      swtch(&c->context, &selected_proc->context);
+
+      // Proceso termina su ejecución por ahora
+      c->proc = 0;
+      found = 1;
+      release(&selected_proc->lock);
+    }
+
     if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
+      // No hay procesos RUNNABLE, detener el core hasta una interrupción
       intr_on();
       asm volatile("wfi");
     }
   }
 }
+
+
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -486,7 +521,7 @@ scheduler(void)
 // kernel thread, not this CPU. It should
 // be proc->intena and proc->noff, but that would
 // break in the few places where a lock is held but
-// there's no process.
+
 void
 sched(void)
 {

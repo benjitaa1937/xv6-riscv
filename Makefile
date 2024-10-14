@@ -139,7 +139,8 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
-        $U/_getppidtest
+        $U/_getppidtest\
+        $U/_pruebat2\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
