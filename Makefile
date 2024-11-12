@@ -141,6 +141,7 @@ UPROGS=\
 	$U/_zombie\
         $U/_getppidtest\
         $U/_pruebat2\
+        $U/_testmp\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

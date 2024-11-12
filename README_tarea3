@@ -1,0 +1,48 @@
+Benjamín González
+Sistemas Operativos
+
+La protección de memoria consiste en un método o mecanismo dentro de los sistemas operativos que permite asegurar que
+cada proceso solo pueda acceder a ciertas regiones de memoria, determinadas a través de permisos explícitos, con
+el objetivo de prevenir errores y posibles ataques y/o acciones maliciosas. En resumen, es una práctica que permite
+restringir el acceso a ciertas direcciones de memoria y controlar los permisos que tiene cada proceso sobre dichas
+direcciones o áreas, que consisten en: permiso de escritura, lectura y ejecucción.
+
+Para esta tarea, definí las funciones en defs.h, luego implementé la lógica dentro de vm.c que almacena todo el código
+relacionado con direcciones de memoria, ideal para este caso. Posteriormente, creé un programa de prueba testmp.c para
+verificar que el código estuviese funcionando como debía, para continuar después con definiciones de las funciones
+implementadas, modificando user.h, usys.pl, syscall.h y syscall.c. Aquí tuve mi primer error: 
+"riscv64-unknown-elf-ld: kernel/syscall.o:(.rodata+0xd0): undefined reference to sys_mprotect'
+riscv64-unknown-elf-ld: kernel/syscall.o:(.rodata+0xd8): undefined reference to sys_munprotect'", dado que me olvidé de
+implementar la lógica en sysproc.c, paso fundamental para asegurar el funcionamiento del programa. También tuve otro
+error dentro del sysproc.c, referente a la lógica de la función y cómo xv6 maneja las direcciones de memoria:
+"kernel/sysproc.c: In function 'sys_mprotect':
+kernel/sysproc.c:107:6: error: void value not ignored as it ought to be
+  107 |   if(argaddr(0, (uint64)&addr) < 0 || argint(1, &len) < 0)
+      |      ^~~~~~~~~~~~~~~~~~~~~~~~~~
+kernel/sysproc.c:107:40: error: void value not ignored as it ought to be
+  107 |   if(argaddr(0, (uint64)&addr) < 0 || argint(1, &len) < 0)
+      |                                        ^~~~~~~~~~~~~
+kernel/sysproc.c: In function 'sys_munprotect':
+kernel/sysproc.c:120:6: error: void value not ignored as it ought to be
+  120 |   if(argaddr(0, (uint64*)&addr) < 0 || argint(1, &len) < 0)
+      |      ^~~~~~~~~~~~~~~~~~~~~~
+kernel/sysproc.c:120:40: error: void value not ignored as it ought to be
+  120 |   if(argaddr(0, (uint64*)&addr) < 0 || argint(1, &len) < 0)
+      |                                        ^~~~~~~~~~~~~
+make: *** [<builtin>: kernel/sysproc.o] Error 1"
+
+Para solucionarlo, eliminé la verificación de retorno de argaddr y argint ya que se trata de funciones void, además
+de cambiar el tipo de addr a uint64 para adaptarse a xv6 y agregué el cast a void*.
+
+Finalmente, voy a resumir el funcionamiento del programa de prueba:
+1: test_basic_protection: Asigna una página de memoria (sbrk(4096)), escribe un valor inicial "A" en la memoria,
+llama a mprotect para hacer la página de solo lectura, hace un fork y en el proeso hijo intenta escribir "B" en la 
+memoria protegida, el hijo debería fallar al intentar escribir, verificando que funciona correctamente la protección, 
+verifica que "A" sigue intacto, utiliza munprotect para permitir escritura nuevamente y termina verificando que ahora
+sí se puede escribir en la memoria, con "C".
+2: test_invalid_params: Prueba casos límite y errores, intenta proteger una dirección de memoria no alineada a la página,
+prueba longitud 0 o negativa, prueba direcciones inválidas, causando que todas las llamadas deberían retornar -1.
+3: test_multiple_pages: asigna 3 páginas contiguas de memoria, inicializa cada página con valores diferentes "A", "B",
+y "C", protege a la vez todas las páginas mencionadas con mprotect, intenta escribir en la segunda página para verificar
+que todas estén protegidas y finaliza verificando que ninguna página sufrió modificaciones.
+

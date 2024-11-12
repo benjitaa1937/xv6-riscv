@@ -5,6 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -448,4 +450,86 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+// Función auxiliar para validar dirección y longitud
+static int validate_addr_len(void *addr, int len, struct proc *p) {
+  // Verificar alineación de página
+  if(((uint64)addr % PGSIZE) != 0)
+    return -1;
+  
+  // Verificar longitud positiva
+  if(len <= 0)
+    return -1;
+
+  // Verificar que el rango está dentro del espacio de direcciones del proceso
+  uint64 va_start = (uint64)addr;
+  uint64 va_end = va_start + (len * PGSIZE);
+  
+  if(va_start >= MAXVA || va_end > MAXVA || va_end < va_start)
+    return -1;
+
+  // Verificar que las páginas pertenecen al proceso
+  for(uint64 va = va_start; va < va_end; va += PGSIZE) {
+    pte_t *pte = walk(p->pagetable, va, 0);
+    if(pte == 0 || (*pte & PTE_V) == 0)
+      return -1;
+  }
+  
+  return 0;
+}
+
+// Implementación de mprotect
+int mprotect(void *addr, int len) {
+  struct proc *p = myproc();
+  
+  // Validar parámetros
+  if(validate_addr_len(addr, len, p) < 0)
+    return -1;
+
+  uint64 va_start = (uint64)addr;
+  
+  // Modificar los bits de protección
+  for(int i = 0; i < len; i++) {
+    uint64 va = va_start + (i * PGSIZE);
+    pte_t *pte = walk(p->pagetable, va, 0);
+    
+    if(pte == 0 || (*pte & PTE_V) == 0)
+      return -1;
+      
+    // Remover permiso de escritura
+    *pte &= ~PTE_W;
+    
+    // Invalidar TLB entry
+    sfence_vma(va, va + PGSIZE);
+  }
+  
+  return 0;
+}
+
+// Implementación de munprotect
+int munprotect(void *addr, int len) {
+  struct proc *p = myproc();
+  
+  // Validar parámetros
+  if(validate_addr_len(addr, len, p) < 0)
+    return -1;
+
+  uint64 va_start = (uint64)addr;
+  
+  // Modificar los bits de protección
+  for(int i = 0; i < len; i++) {
+    uint64 va = va_start + (i * PGSIZE);
+    pte_t *pte = walk(p->pagetable, va, 0);
+    
+    if(pte == 0 || (*pte & PTE_V) == 0)
+      return -1;
+      
+    // Restaurar permiso de escritura
+    *pte |= PTE_W;
+    
+    // Invalidar TLB entry
+    sfence_vma(va, va + PGSIZE);
+  }
+  
+  return 0;
 }
