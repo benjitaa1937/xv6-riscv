@@ -1,0 +1,16 @@
+Tarea 5 Voluntaria - Benjamín González - IPC + Cola de mensajes
+
+La tarea fue complicada, obtuve muchos erroes en el camino referente a la definición de estructuras, entre otros y
+hubo algunos que no fui capaz de resolver, sin embargo, considero que la mayoría del trabajo fue correcto.Tuve errores
+también dado que se me olvidaba modificar ciertos archivos, incluir otros y problemas con definiciones, pero esos
+fui capaz de solucionar. Fue una buena experiencia trabajar en esta tarea para aprender cómo funcionan los IPC
+a pesar de que el resultado no fue bueno, estoy seguro que me faltó un cambio mínimo para asegurar el funcionamiento. 
+El IPC
+debería permitir a los procesos de un sistema operativo comunicarse entre sí, en este caso, se utiliza una cola de 
+mensajes.
+
+Los pasos seguidos fueron: 
+Crear un archivo msg.h, msg.c, modificar el sysproc.c, syscall.c, defs.h y crear el programa de prueba msg_test.c 
+y agregar lo pertinente al makefile.
+
+

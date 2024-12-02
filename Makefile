@@ -142,6 +142,7 @@ UPROGS=\
         $U/_getppidtest\
         $U/_pruebat2\
         $U/_testmp\
+        $U/_msg_test\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

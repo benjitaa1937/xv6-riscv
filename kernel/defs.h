@@ -8,7 +8,6 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
-
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -140,7 +139,6 @@ void            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
 void            syscall();
-
 // trap.c
 extern uint     ticks;
 void            trapinit(void);
@@ -175,6 +173,8 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int mprotect(void*, int);
 int munprotect(void*, int);
+uint64 sys_send(void);
+uint64 sys_receive(void);
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

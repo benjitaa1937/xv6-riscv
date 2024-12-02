@@ -39,3 +39,5 @@ entry("uptime");
 entry("getppid");
 entry("mprotect");
 entry("munprotect");
+entry("send");
+entry("receive");

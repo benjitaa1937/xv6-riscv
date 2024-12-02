@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "msg.h"
 
 uint64
 sys_exit(void)
@@ -122,3 +123,61 @@ sys_munprotect(void)
   
   return munprotect((void*)addr, len);
 }
+uint64
+sys_send(void)
+{
+  char msg[MSG_SIZE];
+  struct proc *p = myproc();
+
+  if(argstr(0, msg, MSG_SIZE) < 0)
+    return -1;
+
+  acquire(&mqueue.lock);
+
+  if(mqueue.size >= MAX_MESSAGES) {
+    release(&mqueue.lock);
+    return -1;
+  }
+
+  mqueue.messages[mqueue.tail].sender_pid = p->pid;
+  safestrcpy(mqueue.messages[mqueue.tail].content, msg, MSG_SIZE);
+
+  mqueue.tail = (mqueue.tail + 1) % MAX_MESSAGES;
+  mqueue.size++;
+
+  wakeup(&mqueue);
+  release(&mqueue.lock);
+  return 0;
+}
+
+uint64
+sys_receive(void)
+{
+  char *msg;
+  uint64 addr;
+  struct proc *p = myproc();
+
+  if(argaddr(0, &addr) < 0)
+    return -1;
+  
+  msg = (char*)addr;
+
+  acquire(&mqueue.lock);
+
+  while(mqueue.size == 0) {
+    sleep(&mqueue, &mqueue.lock);
+  }
+
+  if(copyout(p->pagetable, (uint64)msg, 
+             mqueue.messages[mqueue.head].content, MSG_SIZE) < 0) {
+    release(&mqueue.lock);
+    return -1;
+  }
+
+  mqueue.head = (mqueue.head + 1) % MAX_MESSAGES;
+  mqueue.size--;
+
+  release(&mqueue.lock);
+  return 0;
+}
+
